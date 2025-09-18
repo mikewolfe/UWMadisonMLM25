@@ -1,0 +1,74 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+## 
+
+```{r}
+train <- read.csv("../../../data/train.csv", stringsAsFactors=FALSE)
+```
+
+## Histogram of scores
+
+```{r}
+hist(train$score, breaks=40)
+hist(scale(train$score), breaks=40)
+```
+## Table of reference aa frequencies
+
+```{r, fig.width=10}
+table(train$ref_short)
+barplot(table(train$ref_short), main = "Frequency of Ref", ylab="Frequency", xlab="AA")
+```
+## Table of alternate aas
+
+```{r, fig.width=10}
+table(train$alt_short)
+barplot(table(train$alt_short))
+```
+
+## Table of ref_alt
+
+```{r, fig.width=8, fig.height=60}
+table(paste0(train$ref_short, "_", train$alt_short))
+barplot(table(paste0(train$ref_short, "_", train$alt_short)), xlab="REF-ALT Pair", ylab="Frequency", horiz = TRUE, las=2, cex.names=0.5)
+
+```
+
+Are all pairs represented in dataset?  ~ 400 states...
+There are some ref aa == alt aa's different nt codon producing same aa?
+
+```{r, fig.width=10}
+boxplot(score~ref_short, data = train, cex=0.5, pch=19)
+```
+
+```{r, fig.width=10}
+boxplot(score~alt_short, data = train, pch=19, cex=0.5)
+```
+
+```{r, fig.height=40, fig.width=5}
+boxplot(score~ref_short+alt_short, data = train, pch=19, cex=0.5, horizontal = TRUE, las=2, cex.axis=0.5)
+```
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
