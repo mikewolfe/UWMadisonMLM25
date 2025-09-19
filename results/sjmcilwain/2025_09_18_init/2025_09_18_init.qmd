@@ -37,6 +37,14 @@ barplot(table(paste0(train$ref_short, "_", train$alt_short)), xlab="REF-ALT Pair
 
 ```
 
+## Table of scoresets
+
+```{r}
+table(train$scoreset)
+barplot(table(train$scoreset))
+```
+
+
 Are all pairs represented in dataset?  ~ 400 states...
 There are some ref aa == alt aa's different nt codon producing same aa?
 
