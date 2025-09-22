@@ -1,0 +1,46 @@
+---
+author: Mike Wolfe
+date: 2025-09-18
+title: "Initial EDA"
+---
+
+```{r}
+library(tidyverse)
+theme_set(theme_classic())
+```
+
+```{r}
+d_train <- read_csv("../../../data/mave-db-amino-acid-substitution-prediction/train.csv") %>% mutate(split = "train")
+d_test <- read_csv("../../../data/mave-db-amino-acid-substitution-prediction/test.csv") %>% mutate(split = "test")
+d <- bind_rows(d_train, d_test)
+d
+```
+```{r}
+d_test
+```
+
+```{r}
+d %>% ggplot(aes(x = score, color = split)) + geom_density() + coord_cartesian(xlim = c(-4, 10)) #+ #scale_x_log10() +
+  #annotation_logticks(sides = "b")
+```
+
+```{r, fig.height = 7, fig.width = 7}
+d %>% mutate(change = str_c(ref_short, "->", alt_short)) %>%
+  filter(ref_short != alt_short) %>%
+  ggplot(aes(x = score, color = alt_short)) + geom_density() +
+  scale_x_log10() + facet_wrap(~ref_short)
+```
+
+
+```{r}
+d %>% group_by(ensp) %>% summarize(wt = sum(ref_short == alt_short), variants = sum(ref_short != alt_short)) %>%
+  mutate(ensp = fct_reorder(ensp, variants)) %>%
+  ggplot(aes(x = ensp, y = variants)) + geom_col() + scale_y_log10() +
+   annotation_logticks(sides = "l") + theme(axis.text.x = element_blank())
+```
+
+
+
+```{r}
+d %>% group_by(ensp) %>% summarize(wt = sum(ref_short == alt_short), variants = sum(ref_short != alt_short)) %>% arrange(-wt)
+```
