@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Data Folder
+Data/
+
+# Brendan's Workbench commit prevention code
+Workbench*.ipynb
