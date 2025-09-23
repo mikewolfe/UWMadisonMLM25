@@ -1,0 +1,129 @@
+---
+author: Mike Wolfe
+date: 2025-09-18
+title: "Initial EDA"
+---
+
+```{r}
+library(tidyverse)
+theme_set(theme_classic())
+```
+# Read train and test data
+```{r}
+d_train <- read_csv("../../../data/mave-db-amino-acid-substitution-prediction/train.csv") %>% mutate(split = "train")
+d_test <- read_csv("../../../data/mave-db-amino-acid-substitution-prediction/test.csv") %>% mutate(split = "test")
+d <- bind_rows(d_train, d_test)
+d
+```
+
+
+```{r}
+d_test
+```
+
+# Initial look at the outcome variable
+```{r}
+d_train %>% ggplot(aes(x = score, color = split)) + geom_density() #+ coord_cartesian(xlim = c(-4, 10)) #+ #scale_x_log10() +
+  #annotation_logticks(sides = "b")
+```
+Pretty wide multi-modal distribution
+
+
+# Types of mutations
+```{r, fig.height = 7, fig.width = 7}
+d_train %>% mutate(change = str_c(ref_short, "->", alt_short)) %>%
+  filter(ref_short != alt_short) %>%
+  ggplot(aes(x = score, color = alt_short)) + geom_density() +
+    facet_wrap(~ref_short)
+```
+
+
+```{r}
+d_train %>% group_by(ensp) %>% summarize(wt = sum(ref_short == alt_short), variants = sum(ref_short != alt_short)) %>%
+  mutate(ensp = fct_reorder(ensp, variants)) %>%
+  ggplot(aes(x = ensp, y = variants)) + geom_col() + scale_y_log10() +
+   annotation_logticks(sides = "l") + theme(axis.text.x = element_blank())
+```
+
+
+
+```{r}
+d_train %>% group_by(ensp) %>% summarize(wt = sum(ref_short == alt_short), variants = sum(ref_short != alt_short)) %>% arrange(-wt)
+```
+
+
+```{r}
+d_train %>% group_by(ensp, scoreset) %>% summarize(n()) %>% 
+  ggplot(aes(x = ensp, y = scoreset, fill = `n()`)) + geom_tile() +scale_fill_viridis_c()
+```
+
+
+```{r}
+d_train %>% group_by(ensp, scoreset) %>% summarize(wt = sum(ref_short == alt_short), variants = sum(ref_short != alt_short)) %>% arrange(-wt)
+```
+
+
+# Look at similarities between train and test set
+
+Looks like every protein is shared between the train and test set and roughly
+60% of the data for each protein is in the train set
+```{r}
+d %>% group_by(ensp, split) %>% summarize(n = n()) %>% mutate(total = sum(n)) %>%
+    ungroup() %>%
+    mutate(ensp = fct_reorder(ensp, total)) %>%
+    ggplot(aes(y = ensp, x = n/total, fill = split)) + geom_col()
+```
+
+
+Is this true for the assay types as well?
+```{r}
+d %>% mutate(prot_assay = str_c(ensp, scoreset), sep = ";") %>%
+    group_by(prot_assay, split) %>% summarize(n = n()) %>% mutate(total = sum(n), frac = n/total) %>%
+    ungroup() %>%
+    mutate(prot_assay = fct_reorder(prot_assay, frac)) %>%
+    ggplot(aes(y = prot_assay, x = frac, fill = split)) + geom_col()
+```
+Pretty much, expect a handful of assays that are only in the train set. Which ones?
+
+```{r}
+d %>% mutate(prot_assay = str_c(ensp, scoreset), sep = ";") %>%
+    group_by(prot_assay, split) %>% summarize(n = n()) %>% mutate(total = sum(n), frac = n/total) %>% 
+    arrange(-frac)
+```
+
+And what about the distribution of WT to variant sequences
+```{r}
+d %>% mutate(prot_assay = str_c(ensp, scoreset), sep = ";") %>%
+    mutate(WT = ref_short == alt_short) %>%
+    group_by(prot_assay, WT, split) %>% summarize(n = n()) %>% mutate(total = sum(n), frac = n/total) %>%
+    ungroup() %>%
+    mutate(prot_assay = fct_reorder(prot_assay, frac)) %>%
+    ggplot(aes(y = prot_assay, x = frac, fill = split)) + geom_col() + facet_wrap(~WT)
+```
+Also evenly split between the train and test set
+
+# Figures for EDA presentation
+
+## How many proteins and assay types
+
+```{r}
+d %>% group_by(split) %>% summarize(n_proteins = n_distinct(ensp))
+d %>% group_by(split) %>% summarize(n_assays = n_distinct(scoreset))
+d %>% group_by(split) %>% summarize(n_assays = n_distinct(str_c(ensp, scoreset)))
+```
+
+```{r}
+d %>% group_by(split, scoreset) %>% summarize(n_assays = n_distinct(ensp)) %>% ungroup() %>% arrange(-n_assays)
+```
+
+```{r, fig.height = 3, fig.width = 7}
+d %>% group_by(ensp, split) %>% summarize(wt = sum(ref_short == alt_short), variants = sum(ref_short != alt_short)) %>%
+    ungroup() %>%
+  mutate(ensp = fct_reorder(ensp, variants)) %>%
+  ggplot(aes(x = ensp, y = variants, fill = split, color = split)) + geom_col() + theme(axis.text.x = element_blank()) +
+     scale_y_log10(
+   breaks = scales::trans_breaks("log10", \(x) 10^x),
+   labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    facet_wrap(~split, ncol = 1) + annotation_logticks(sides = "l") +
+    labs(x = "Unique Protein", y = "# of variants", fill = "Dataset", color = "Dataset")
+```
