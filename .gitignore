@@ -209,3 +209,9 @@ __marimo__/
 
 # R
 *.Rhistory
+
+# Data Folder
+Data/
+
+# Brendan's Workbench commit prevention code
+Workbench*.ipynb
