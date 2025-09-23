@@ -16,12 +16,12 @@ Repository for UW-Madison Machine Learning Marathon 2025
   (https://www.kaggle.com/competitions/mave-db-amino-acid-substitution-prediction/data)
     - [ ] Mike
     - [ ] Zach
-    - [ ] Sean
+    - [x] Sean
     - [ ] Brendan
 - [ ] Download Data
     - [x] Mike
     - [ ] Zach
-    - [ ] Sean
+    - [x] Sean
     - [ ] Brendan
 - [ ] EDA Slides due 9/30
     - [x] Create slide deck - Mike 9/22
