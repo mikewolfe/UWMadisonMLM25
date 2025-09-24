@@ -1,0 +1,177 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+
+```{r}
+library(jsonlite)
+library(curl)
+
+getScoreSetJSON<-function(scoreset) {
+    url <- paste0("https://api.mavedb.org/api/v1/score-sets/", scoreset)
+    message(url)
+    response <- curl_fetch_memory(url)
+    json_data <- rawToChar(response$content)
+    parsed_data <- fromJSON(json_data)
+    return(parsed_data)
+}
+
+train_data <- read.csv("../../../data/train.csv")
+
+scoresets <- unique(train_data$scoreset)
+
+jsons <- UWCCC.misc::cacheEval(
+  fp = "train_mavedb_scoreset_jsons.qs",
+  regenerate = FALSE,
+  eval_fxn = function() {
+
+jsons <- list()
+
+for (scoreset in scoresets) {
+  jsons[[scoreset]] <- getScoreSetJSON(scoreset)
+}
+return(jsons)
+}
+)
+
+experiment_urn <- unlist(lapply(jsons, function(l){l$experiment$urn}))
+
+sequence_df <- data.frame(
+  scoreset = names(jsons),
+  experiment = experiment_urn,
+#  uniprot_id = unlist(lapply(jsons, function(l){l$targetGenes$uniprotIdFromMappedMetadata})),
+  sequence = unlist(lapply(jsons, function(l){l$targetGenes$targetSequence$sequence})),
+  target_gene_name = unlist(lapply(jsons, function(l){l$targetGenes$name})),
+  shortDescription = unlist(lapply(jsons, function(l){l$shortDescription}))
+)
+
+write.csv(sequence_df, "train_mavedb_scoreset_sequence_df.csv", row.names=FALSE)
+```
+
+```{r}
+experiment_tbl <- table(sequence_df$experiment)
+experiment_tbl_tbl <- table(experiment_tbl)
+barplot(experiment_tbl_tbl, main="number of experiments/scoreset")
+sequence_df[sequence_df$experiment == names(experiment_tbl[experiment_tbl == 28]),] |> head() |> knitr::kable()
+
+```
+
+
+```{r}
+getExperiment<-function(urn) {
+  url <- paste0("https://api.mavedb.org/api/v1/experiments/", urn)
+    message(url)
+    response <- curl_fetch_memory(url)
+    json_data <- rawToChar(response$content)
+    parsed_data <- fromJSON(json_data)
+    return(parsed_data)
+}
+
+expr <- getExperiment(sequence_df$experiment[1])
+
+expr_jsons <- UWCCC.misc::cacheEval(
+  fp = "train_mavedb_experiment_jsons.qs",
+  regenerate = TRUE,
+  eval_fxn = function() {
+
+jsons <- list()
+
+for (urn in unique(sequence_df$experiment)) {
+  jsons[[urn]] <- getExperiment(urn)
+}
+return(jsons)
+}
+)
+
+
+
+```
+
+Looks like the same info comes from the experiment set...
+
+
+## Look at shortDescription to see if we can infer an assaytype
+
+Let's start with adding a 
+
+```{r}
+#table(sequence_df$shortDescription)
+
+assay_df <- sequence_df[,c("scoreset", "shortDescription")]
+
+
+```
+
+## Trying a tokenizer
+
+Let's tokenize by words and see if we can infer the assay type or something 
+based upon the description
+
+```{r}
+library(tokenizers)
+library(stopwords)
+token_word_count <- table(unlist(tokenize_words(assay_df$shortDescription, stopwords = stopwords("en"))))
+token_word_count <- token_word_count[order(token_word_count, decreasing=TRUE)]
+barplot(token_word_count[20:1], las=2, cex.names = 0.5, horiz = TRUE, main = "frequency of words in short descriptions (top 20)")
+
+remove_tokens <- c("domain", "domainone", "measurements", "kras", "type", "1.0", "zinc", "finger", "2", "v1")
+
+token_word_count2 <- token_word_count[!(names(token_word_count) %in% remove_tokens)]
+barplot(token_word_count2[20:1], las=2, cex.names = 0.5, horiz = TRUE, main = "frequency of words in short descriptions (top 20)\nRemove Tokens")
+```
+
+## Binding
+
+```{r}
+assay_df$binding <- FALSE
+assay_df$binding[grep("binding", assay_df$shortDescription, ignore.case=TRUE)] <- TRUE
+table(assay_df$binding)
+```
+
+### Stability
+```{r}
+assay_df$stability <- FALSE
+assay_df$stability[grep("stability", assay_df$shortDescription, ignore.case=TRUE)] <- TRUE
+table(assay_df$stability)
+```
+
+### Fitness
+
+```{r}
+assay_df$fitness <- FALSE
+assay_df$fitness[grep("fitness", assay_df$shortDescription, ignore.case=TRUE)] <- TRUE
+table(assay_df$fitness)
+```
+
+```{r}
+for (token in names(token_word_count)) {
+  assay_df[,token] <- FALSE
+  assay_df[grep(token, assay_df$shortDescription, ignore.case = TRUE),token] <- TRUE
+}
+write.csv(assay_df, "train_mavedb_scoreset_shortdesc_tokens.csv", row.names=FALSE)
+
+```
+
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
