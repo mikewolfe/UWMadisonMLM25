@@ -71,7 +71,8 @@ Looks like every protein is shared between the train and test set and roughly
 d %>% group_by(ensp, split) %>% summarize(n = n()) %>% mutate(total = sum(n)) %>%
     ungroup() %>%
     mutate(ensp = fct_reorder(ensp, total)) %>%
-    ggplot(aes(y = ensp, x = n/total, fill = split)) + geom_col()
+    ggplot(aes(y = ensp, x = n/total, fill = split)) + geom_col() +
+    labs(title = "Data by ensp number", y = "Ensp", x = "Fraction of data")
 ```
 
 
@@ -81,7 +82,8 @@ d %>% mutate(prot_assay = str_c(ensp, scoreset), sep = ";") %>%
     group_by(prot_assay, split) %>% summarize(n = n()) %>% mutate(total = sum(n), frac = n/total) %>%
     ungroup() %>%
     mutate(prot_assay = fct_reorder(prot_assay, frac)) %>%
-    ggplot(aes(y = prot_assay, x = frac, fill = split)) + geom_col()
+    ggplot(aes(y = prot_assay, x = frac, fill = split)) + geom_col() +
+    labs(title = "Data by ensp:scoreset pair", y = "enps:scoreset", x = "Fraction of data")
 ```
 Pretty much, expect a handful of assays that are only in the train set. Which ones?
 
@@ -94,11 +96,12 @@ d %>% mutate(prot_assay = str_c(ensp, scoreset), sep = ";") %>%
 And what about the distribution of WT to variant sequences
 ```{r}
 d %>% mutate(prot_assay = str_c(ensp, scoreset), sep = ";") %>%
-    mutate(WT = ref_short == alt_short) %>%
+    mutate(WT = if_else(ref_short == alt_short, "WT", "Variant")) %>%
     group_by(prot_assay, WT, split) %>% summarize(n = n()) %>% mutate(total = sum(n), frac = n/total) %>%
     ungroup() %>%
     mutate(prot_assay = fct_reorder(prot_assay, frac)) %>%
-    ggplot(aes(y = prot_assay, x = frac, fill = split)) + geom_col() + facet_wrap(~WT)
+    ggplot(aes(y = prot_assay, x = frac, fill = split)) + geom_col() + facet_wrap(~WT) +
+    labs(title = "Data by ensp:scoreset pair", y = "enps:scoreset", x = "Fraction of data")
 ```
 Also evenly split between the train and test set
 
