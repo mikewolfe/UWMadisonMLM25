@@ -213,5 +213,8 @@ __marimo__/
 # Data Folder
 Data/
 
+# ESM files
+esm_models/
+
 # Brendan's Workbench commit prevention code
 Workbench*.ipynb
