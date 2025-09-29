@@ -37,9 +37,30 @@ tidymodels_prefer()
 ```{r}
 d <- read_tsv("train_with_seqs.tsv")
 ```
+# Check Z-scoring by protein
+
+```{r}
+d <- d %>% group_by(ensp) %>% mutate(zscore = (score - mean(score))/sd(score)) %>% ungroup() 
+```
+
+
+```{r}
+d %>%
+    ggplot(aes(x = score, y = zscore)) + geom_hex() + scale_fill_viridis_c(trans = "log10")
+```
+
+
+
+```{r}
+d %>% pivot_longer(c(zscore, score)) %>%
+    ggplot(aes(x = value, group = scoreset)) + geom_density() +
+    facet_wrap(~name, nrow =2, scales = "free")
+```
+
+
 # Check Zscoring within score sets
 ```{r}
-d <- d %>% group_by(scoreset) %>% mutate(zscore = (score - mean(score))/sd(score)) %>% ungroup()
+d <- d %>% group_by(scoreset) %>% mutate(zscore = (score - mean(score))/sd(score)) %>% ungroup() 
 ```
 
 ```{r}
@@ -65,6 +86,7 @@ Define a preprocessing recipe
 three_mer_recipe <- function(data){
     out <- recipes::recipe(zscore ~ seq + ensp + scoreset, data = data)
     out |>
+        recipes::step_naomit(zscore) |>
         textrecipes::step_tokenize(seq, token = "characters") |>
         textrecipes::step_ngram(seq, num_tokens = 3, min_num_tokens = 3) |>
         textrecipes::step_tfidf(seq) |>
