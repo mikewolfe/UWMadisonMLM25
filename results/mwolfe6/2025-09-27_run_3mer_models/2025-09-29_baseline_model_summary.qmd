@@ -1,0 +1,96 @@
+---
+title: "3mer Tuning results"
+number-sections: true
+author: "Mike Wolfe"
+date: "2025/09/29"
+execute:
+  warning: false
+  error: false
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+    lightbox: true
+    embed-resources: true
+    fig-width: 6
+    fig-height: 4
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+library(tidyverse)
+library(here)
+theme_set(theme_classic())
+```
+
+```{r}
+d_perf <- read_tsv(here("results", "mwolfe6", "2025-09-27_run_3mer_models", "2025-09-27_test20_train_test_perf.tsv")) %>%
+    # make the split variable have better labels and print in Train, Test order
+    mutate(split = if_else(split == "train", "Train", "Test")) %>%
+    mutate(split = factor(split, levels = c("Train", "Test"))) 
+```
+
+```{r, fig.width = 6, fig.height = 3}
+d_perf %>% 
+    # plot
+    ggplot(aes(x = zscore, y = .pred)) + geom_hex() + scale_fill_viridis_c(trans = "log10") +
+    facet_wrap(~split, ncol = 2) + 
+    # add one to one line
+    geom_abline(color = "red", linetype = "dashed", size = 1) +
+    # add spearman Rho
+    ggpubr::stat_cor(label.x = 3.0, label.y = -1.75,
+                     method = "spearman", aes(label = after_stat(r.label))) +
+    # fix labels
+    labs(title = "3-mers with XGBoost", y = "Prediction", x = "Assay Z-score")
+```
+
+```{r}
+d_tune <- read_tsv(here("results", "mwolfe6", "2025-09-27_run_3mer_models", "2025-09-27_test20_cv_metrics.tsv"))
+```
+
+
+```{r}
+d_tune %>% pivot_longer(-c(id, .config, .metric, .estimator, .estimate), 
+                        names_to = "hyperparam", values_to = "hyperval") %>%
+    filter(.metric == "rsq") %>%
+    ggplot(aes(x = hyperval, y = .estimate)) + geom_point() + geom_smooth(method = "lm") + 
+    facet_wrap(~ hyperparam, scales = "free_x") +
+    labs(x = "Hyperparameter value", y = "R-squared on held out data")
+```
+
+
+
+```{r}
+d_perf %>% filter(ref_short == alt_short) %>%
+    # plot
+    ggplot(aes(x = zscore, y = .pred)) + geom_hex() + scale_fill_viridis_c(trans = "log10") +
+    facet_wrap(~split, ncol = 2) + 
+    # add one to one line
+    geom_abline(color = "red", linetype = "dashed", size = 1) +
+    # add spearman Rho
+    #ggpubr::stat_cor(label.x = 3.0, label.y = -1.75,
+                     #method = "spearman", aes(label = after_stat(r.label))) +
+    # fix labels
+    labs(title = "3-mers with XGBoost", y = "Prediction", x = "Assay Z-score")
+```
+
+
+```{r}
+d_perf %>% group_by(ref_short, alt_short, split) %>%
+    summarize(mae = mean(abs(.pred - zscore))) %>%
+    ggplot(aes(x = ref_short, y = alt_short, fill = mae)) + geom_tile() + scale_fill_viridis_c() +
+    facet_wrap(~split) +
+    labs(x = "Reference AA", y = "Variant AA", fill = "MAE", title = "3mer Predictions by Variant")
+```
+
+```{r, fig.width = 5, fig.height = 4}
+d_perf %>% group_by(ref_short, alt_short, split) %>%
+    summarize(mae = mean(abs(.pred - zscore))) %>%
+    filter(split == "Test") %>%
+    ggplot(aes(x = ref_short, y = alt_short, fill = mae)) + geom_tile() + scale_fill_viridis_c() +
+    labs(x = "Reference AA", y = "Variant AA", fill = "MAE", title = "3mer Predictions by Variant")
+```
