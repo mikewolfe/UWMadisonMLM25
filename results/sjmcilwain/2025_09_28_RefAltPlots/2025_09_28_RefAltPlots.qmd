@@ -1,0 +1,116 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+library(UWCCC.misc) #For makeExtFilePath
+date_tag = basename(getwd())
+```
+
+## Read in train
+
+```{r}
+train <- read.csv("../../../data/train.csv", stringsAsFactors=FALSE)
+```
+
+
+```{r, fig.height=40, fig.width=5}
+boxplot(score~ref_short+alt_short, data = train, pch=19, cex=0.5, horizontal = TRUE, las=2, cex.axis=0.5)
+```
+
+```{r, fig.width=10}
+top.x <- 20
+train$RefAlt <- paste0(train$ref_short, " ", train$alt_short)
+var_res <- aggregate(
+  train$score,
+  by = list(
+    RefAlt = train$RefAlt
+  ),
+  var, na.rm=TRUE
+)
+colnames(var_res)[ncol(var_res)] <- "Variance"
+var_res <- var_res[order(var_res$Variance, decreasing=TRUE),]
+
+train_hv <- train[(train$RefAlt %in% var_res$RefAlt[1:top.x]),]
+
+par(mfrow=c(1,2))
+boxplot(score~ref_short+alt_short, 
+        data = train_hv, 
+        pch=19, cex=0.5, 
+        horizontal = TRUE, 
+        las=2, cex.axis=0.5, 
+        drop=TRUE,
+        main = paste0(top.x, " Single AA Changes with highest variance"),
+        ylab = "Reference.Alternate"
+)
+
+var_res <- var_res[order(var_res$Variance, decreasing=FALSE),]
+train_lv <- train[train$RefAlt %in% var_res$RefAlt[1:top.x],]
+
+boxplot(score~ref_short+alt_short, 
+        data = train_lv, 
+        pch=19, cex=0.5, 
+        horizontal = TRUE, 
+        las=2, cex.axis=0.5, 
+        drop=TRUE,
+        main = paste0(top.x, " Single AA Changes with lowest variance"),
+        ylab = "Reference.Alternate"
+)
+
+
+```
+
+## Same Ref and Alt
+
+Let's look at the records where the reference and alternate are the same
+
+```{r}
+train_ref <- train[train$ref_short == train$alt_short,]
+
+boxplot(
+  score~ref_short+alt_short, 
+  data = train_ref, 
+  pch=19, cex=0.5, horizontal = TRUE, las=2, cex.axis=0.5, drop=TRUE,
+  ylab = "Reference.Alternate",
+  main = "Reference and Alternate are the same"
+)
+```
+```{r}
+tbl_ref <- table(train_ref$scoreset)
+tbl_all <- table(train$scoreset)
+```
+
+There are `r length(tbl_ref)` out of `r length(tbl_all)` scores sets where there
+is at least one variant that is equal to the reference.
+
+Here is the one of the scoresets with a high number of same ref,alt variants
+
+```{r}
+train_ref_2 <- train_ref[train_ref$scoreset == "urn:mavedb:00001200-e-1",]
+boxplot(
+  score~ref_short+alt_short, 
+  data = train_ref_2, 
+  pch=19, cex=0.5, horizontal = TRUE, las=2, cex.axis=0.5, drop=TRUE,
+  ylab = "Reference.Alternate",
+  main = "Reference and Alternate are the same\nscoreset 00001200-e-1"
+)
+```
+Let's look at the scoreset with the highest score.
+
+```{r}
+train_ref_2 <- train_ref[train_ref$scoreset == "urn:mavedb:00000106-c-1",]
+boxplot(
+  score~ref_short+alt_short, 
+  data = train_ref_2, 
+  pch=19, cex=0.5, horizontal = TRUE, las=2, cex.axis=0.5, drop=TRUE,
+  ylab = "Reference.Alternate",
+  main = "Reference and Alternate are the same\nscoreset 00000106-c-1"
+)
+
+```
+
+```{r}
+write.csv(train_ref, makeExtFilePath("train", "ref.eq.alt", "csv"), row.names=FALSE)
+```
