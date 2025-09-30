@@ -28,6 +28,7 @@ theme_set(theme_classic())
 ```
 
 ```{r}
+# can also read 2025-09-27_XGboost_results_noseqs.tsv.gz here for the same effect
 d_perf <- read_tsv(here("results", "mwolfe6", "2025-09-27_run_3mer_models", "2025-09-27_test20_train_test_perf.tsv")) %>%
     # make the split variable have better labels and print in Train, Test order
     mutate(split = if_else(split == "train", "Train", "Test")) %>%
@@ -93,4 +94,21 @@ d_perf %>% group_by(ref_short, alt_short, split) %>%
     filter(split == "Test") %>%
     ggplot(aes(x = ref_short, y = alt_short, fill = mae)) + geom_tile() + scale_fill_viridis_c() +
     labs(x = "Reference AA", y = "Variant AA", fill = "MAE", title = "3mer Predictions by Variant")
+```
+
+
+```{r}
+d_perf %>% group_by(ref_short, alt_short, split) %>%
+    summarize(n()) %>%
+    filter(ref_short == "W")
+```
+```{r}
+train_d <- read_csv("../../../data/mave-db-amino-acid-substitution-prediction/train.csv")
+train_d %>% filter(ref_short == "W", alt_short == "W")
+train_d %>% filter(ref_short == "M", alt_short == "M")
+```
+
+
+```{r}
+d_perf %>% select(-seq) %>% write_tsv("2025-09-27_XGboost_results_noseqs.tsv.gz")
 ```

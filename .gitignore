@@ -220,3 +220,6 @@ esm_models/
 
 # Brendan's Workbench commit prevention code
 Workbench*.ipynb
+
+# Mac dstores
+.DS_Store
