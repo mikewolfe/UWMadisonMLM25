@@ -1,3 +1,4 @@
+*.tsv.gz
 *.tsv
 *.out
 *.err
