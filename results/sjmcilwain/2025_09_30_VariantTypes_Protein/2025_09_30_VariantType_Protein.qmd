@@ -1,0 +1,41 @@
+---
+title: "VariantTypesPerProtein"
+format: html
+editor: visual
+---
+
+```{r}
+train_data <- read.csv("../../../data/train.csv")
+```
+
+```{r}
+tbl_protein <- table(train_data$ensp)
+train_data$RefAlt <- 
+  paste0(train_data$ref_short, " ", train_data$alt_short)
+
+```
+
+```{r}
+train_sequence <- read.csv("../2025_09_22_mavetools/train_mavedb_scoreset_sequence_df.csv")
+
+train_data2 <- merge(train_data, train_sequence[,c("scoreset", "sequence")], by.x="scoreset", by.y="scoreset")
+
+train_data2$ProteinLength <- nchar(train_data2$sequence)
+
+```
+
+```{r, fig.width=10, fig.height=5}
+num_var <- aggregate(
+  train_data2$RefAlt,
+  by = list(ensp = train_data2$ensp),
+  function(l) {length(unique(l))}
+)
+
+par(mfrow=c(1,2))
+
+colnames(num_var)[ncol(num_var)] <- "NVar"
+hist(num_var$NVar, breaks = 20, xlab = "#Unique Variants/Protein", probability=TRUE, main="#Unique Variants/Protein")
+num_var <- merge(num_var, unique(train_data2[,c("ensp", "ProteinLength")]), by.x="ensp", by.y="ensp")
+plot(num_var$ProteinLength, num_var$NVar, pch=19, log="x", xlab="Protein Length (log scale)", ylab="#Unique Variants", cex=0.5, main="#Unique Variants v Protein Length")
+```
+

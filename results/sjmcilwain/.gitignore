@@ -3,4 +3,10 @@
 *.html
 *.csv
 *.qs
+*.png
+libs/*
+*_files/*
+*.css
+*.woff
+*.js
 
