@@ -28,7 +28,7 @@ scoresets <- unique(train_data$scoreset)
 
 jsons <- UWCCC.misc::cacheEval(
   fp = "train_mavedb_scoreset_jsons.qs",
-  regenerate = FALSE,
+  regenerate = TRUE,
   eval_fxn = function() {
 
 jsons <- list()

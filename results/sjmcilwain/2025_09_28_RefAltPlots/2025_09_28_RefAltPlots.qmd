@@ -114,3 +114,89 @@ boxplot(
 ```{r}
 write.csv(train_ref, makeExtFilePath("train", "ref.eq.alt", "csv"), row.names=FALSE)
 ```
+
+
+```{r, fig.width=15}
+train$RefEQAlt <- train$ref_short == train$alt_short
+boxplot(score~pos, data=train[train$scoreset == "urn:mavedb:00001200-e-1",], las=2, drop=TRUE)
+
+train_1220_e_1 <- train[train$scoreset == "urn:mavedb:00001200-e-1",]
+
+train_1220_e_1_rea <- train_1220_e_1[train_1220_e_1$RefEQAlt,]
+train_1220_e_1_rnea <- train_1220_e_1[!train_1220_e_1$RefEQAlt,]
+
+
+grid::grid.newpage()
+venn_res<-venn_make2Venn(train_1220_e_1_rea$pos, train_1220_e_1_rnea$pos, label1 = "R=A", label2="R!=A")
+
+
+```
+
+```{r, fig.height=6, fig.width=6}
+train_1220_e_1_187 <- train_1220_e_1[train_1220_e_1$pos == 187,]
+
+colors <- rep("black", nrow(train_1220_e_1_187))
+colors[train_1220_e_1_187$RefEQAlt] <- "red"
+
+dotchart(
+  x = train_1220_e_1_187$score,
+  labels = train_1220_e_1_187$RefAlt, 
+  pch=19, color = colors, 
+  main="Dotchart of scores of 00001200-e-1 position 187", ylab = "Reference.Alternate", xlab="score"
+)
+
+s <- train_1220_e_1_187$score[train_1220_e_1_187$RefEQAlt]
+lines(c(s,s),c(-40,40), col="red", lty="dashed")
+
+
+```
+
+```{r, fig.width=10}
+boxplot(score~pos, data=train_1220_e_1_rea, las=2, drop=TRUE, 
+main = "Box of scores vs position using ref=alt\nscoreset 00001200-e-1")
+
+```
+```{r}
+train_1220_e_1_rea[train_1220_e_1_rea$score == min(train_1220_e_1_rea$score),]
+```
+
+
+```{r, fig.height=6, fig.width=6}
+train_1220_e_1_187 <- train_1220_e_1[train_1220_e_1$pos == 448,]
+
+colors <- rep("black", nrow(train_1220_e_1_187))
+colors[train_1220_e_1_187$RefEQAlt] <- "red"
+
+dotchart(
+  x = train_1220_e_1_187$score,
+  labels = train_1220_e_1_187$RefAlt, 
+  pch=19, color = colors, 
+  main="Dotchart of scores of 00001200-e-1 position 448", ylab = "Reference.Alternate", xlab="score"
+)
+
+s <- train_1220_e_1_187$score[train_1220_e_1_187$RefEQAlt]
+lines(c(s,s),c(-40,40), col="red", lty="dashed")
+
+
+```
+```{r}
+train_1220_e_1_rea[train_1220_e_1_rea$score == max(train_1220_e_1_rea$score),]
+```
+```{r, fig.height=6, fig.width=6}
+train_1220_e_1_187 <- train_1220_e_1[train_1220_e_1$pos == 339,]
+
+colors <- rep("black", nrow(train_1220_e_1_187))
+colors[train_1220_e_1_187$RefEQAlt] <- "red"
+
+dotchart(
+  x = train_1220_e_1_187$score,
+  labels = train_1220_e_1_187$RefAlt, 
+  pch=19, color = colors, 
+  main="Dotchart of scores of 00001200-e-1 position 339", ylab = "Reference.Alternate", xlab="score"
+)
+
+s <- train_1220_e_1_187$score[train_1220_e_1_187$RefEQAlt]
+lines(c(s,s),c(-40,40), col="red", lty="dashed")
+
+
+```
