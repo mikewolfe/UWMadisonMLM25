@@ -1,0 +1,200 @@
+---
+title: "Fit simple 3mer model on data"
+number-sections: true
+author: "Mike Wolfe"
+date: "2025/09/27"
+execute:
+  warning: false
+  error: false
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+    lightbox: true
+    embed-resources: true
+    fig-width: 6
+    fig-height: 4
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(tidymodels)
+library(textrecipes)
+library(text2vec)
+library(future)
+theme_set(theme_classic())
+tidymodels_prefer()
+```
+
+
+```{r}
+d <- read_tsv("train_with_seqs.tsv")
+```
+# Check Z-scoring by protein
+
+```{r}
+d <- d %>% group_by(ensp) %>% mutate(zscore = (score - mean(score))/sd(score)) %>% ungroup() 
+```
+
+
+```{r}
+d %>%
+    ggplot(aes(x = score, y = zscore)) + geom_hex() + scale_fill_viridis_c(trans = "log10")
+```
+
+
+
+```{r}
+d %>% pivot_longer(c(zscore, score)) %>%
+    ggplot(aes(x = value, group = scoreset)) + geom_density() +
+    facet_wrap(~name, nrow =2, scales = "free")
+```
+
+
+# Check Zscoring within score sets
+```{r}
+d <- d %>% group_by(scoreset) %>% mutate(zscore = (score - mean(score))/sd(score)) %>% ungroup() 
+```
+
+```{r}
+d %>%
+    ggplot(aes(x = score, y = zscore)) + geom_hex() + scale_fill_viridis_c(trans = "log10")
+```
+
+
+```{r}
+d %>% pivot_longer(c(zscore, score)) %>%
+    ggplot(aes(x = value, group = scoreset)) + geom_density() +
+    facet_wrap(~name, nrow =2, scales = "free")
+```
+
+
+Seems like Z-score makes things a little bit better
+
+
+# Fit XGboost model
+
+Define a preprocessing recipe
+```{r}
+three_mer_recipe <- function(data){
+    out <- recipes::recipe(zscore ~ seq + ensp + scoreset, data = data)
+    out |>
+        recipes::step_naomit(zscore) |>
+        textrecipes::step_tokenize(seq, token = "characters") |>
+        textrecipes::step_ngram(seq, num_tokens = 3, min_num_tokens = 3) |>
+        textrecipes::step_tfidf(seq) |>
+        recipes::step_novel(scoreset) |>
+        recipes::step_novel(ensp) |>
+        recipes::step_dummy(recipes::all_nominal_predictors())
+}
+```
+
+Define a model strategy
+```{r}
+reg_xgboost_spec <-
+    parsnip::boost_tree(
+        trees = 500,
+        tree_depth = tune(),
+        min_n = tune(),
+        loss_reduction = tune(),
+        sample_size = tune(), mtry = tune(),
+        learn_rate = tune()
+    ) |>
+    parsnip::set_engine("xgboost") |>
+    parsnip::set_mode("regression")
+```
+
+Set up splits for the model
+
+split into training and test
+```{r}
+d_split <- d %>% rsample::initial_split()
+```
+
+split training into folds
+```{r}
+d_folds <- rsample::vfold_cv(rsample::training(d_split), v = 3)
+```
+
+set up workflow
+```{r}
+xgboost_wf <- workflow() %>% add_recipe(three_mer_recipe(training(d_split))) %>%
+    add_model(reg_xgboost_spec)
+```
+
+```{r}
+xgboost_wf
+```
+Check the size of the tuning space
+```{r}
+library(ggforce)
+xgboost_params <- extract_parameter_set_dials(xgboost_wf)
+xgboost_params %>% dials::finalize(training(d_split)) %>%
+  grid_random(size = 20) %>%
+    mutate(learn_rate = log10(learn_rate), loss_reduction = log10(loss_reduction)) %>%
+ggplot(aes(x = .panel_x, y = .panel_y)) + 
+  geom_point() +
+  geom_blank() +
+  facet_matrix(vars(mtry, min_n, tree_depth, learn_rate, loss_reduction, sample_size), layer.diag = 2) + 
+  labs(title = "20 random parameter candidates")
+```
+Ok pretty efficient sampling of the space
+
+# Tuning
+```{r}
+my_metrics <- metric_set(rmse, rsq, mae)
+set.seed(42)
+xgboost_reg_tune <-
+  xgboost_wf %>%
+  tune_grid(
+    d_folds,
+    grid = xgboost_params %>% dials::finalize(training(d_split)) %>% grid_random(size = 1),
+    metrics = my_metrics
+  )
+```
+
+```{r}
+xgboost_reg_tune %>% collect_metrics(summarize = FALSE)
+```
+
+```{r}
+best_params <- xgboost_reg_tune %>% select_best() 
+final_model <- xgboost_wf %>% finalize_workflow(best_params)
+```
+
+
+```{r}
+final_fit <- 
+  final_model %>% 
+  fit(training(d_split))
+```
+
+```{r}
+train_perf <- final_fit %>% augment(model, new_data = training(d_split))
+```
+
+```{r}
+test_perf <- final_fit %>% augment(model, new_data = testing(d_split)) 
+```
+
+```{r, fig.width = 7, fig.height = 3}
+library(patchwork)
+p1 <- train_perf %>%
+        ggplot(aes(x = zscore, y = .pred)) + geom_hex() + scale_fill_viridis_c(trans = "log10") +
+    labs(x = "Z-score", y = "Prediction", title = "Train performance") + geom_abline(color = "red", linetype = "dashed") +
+    ggpubr::stat_cor(label.x = 3.0, label.y = -1.5, method = "spearman")
+
+p2 <- test_perf %>%
+        ggplot(aes(x = zscore, y = .pred)) + geom_hex() + scale_fill_viridis_c(trans = "log10") +
+    labs(x = "Z-score", y = "Prediction", title = "Test performance") + geom_abline(color = "red", linetype = "dashed") +
+    ggpubr::stat_cor(label.x = 3.0, label.y = -1.5, method = "spearman")
+
+p1 + p2 
+```
